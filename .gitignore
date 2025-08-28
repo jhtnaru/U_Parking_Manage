@@ -1,0 +1,56 @@
+# Vivado project files
+*.jou
+*.log
+*.str
+*.opt
+*.xml
+*.backup.jou
+*.backup.log
+*.webtalk
+*.wdb
+
+# Simulation files
+*.vcd
+*.wlf
+*.asdb
+*.pb
+*.lxt*
+*.vvp
+*.vhw
+
+# IP cache and temp files
+.ip_user_files/
+.sim/
+.cache/
+.hw/
+.hwvivado/
+.xsim/
+*.runs/
+*.ip_user_files/
+*.tmp/
+*.restore/
+*.project/
+*.crashreport/
+*.xgui/
+
+# Vivado HLS
+*.rpt
+*.db
+*.log
+*.hls_prj/
+*.syn/
+*.impl/
+*.cproject
+*.settings/
+
+# Vivado-generated SDK/Platform files
+.sdk/
+.vscode/
+
+# OS or editor related
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*.bak
+*.tmp
