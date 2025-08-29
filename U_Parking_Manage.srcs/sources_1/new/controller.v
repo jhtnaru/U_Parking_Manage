@@ -355,7 +355,7 @@ module i2c_lcd_send_byte (
     end
 endmodule
 
-//
+// LCD 문자열 출력
 module i2c_lcd_string (
     input clk, reset_p,
     input lcd_start,
@@ -376,7 +376,7 @@ module i2c_lcd_string (
         else cnt_sysclk <= 0;
     end
 
-    // Edge Detection of
+    // Edge Detection of LCD Start-bit
     wire start_pedge, start_nedge;
     edge_detector_pos start_ed (clk, reset_p, lcd_start, start_pedge, start_nedge);
 
@@ -419,20 +419,20 @@ module i2c_lcd_string (
                     end
                     else begin
                         if (cnt_sysclk < 32'd80_000_00) begin   // Wait 80ms
-                            cnt_sysclk_e <= 1;       // System Clock Count Start
+                            cnt_sysclk_e <= 1;      // System Clock Count Start
                         end
                         else begin
-                            next_state <= LCD_INIT;  // Change State I2C_INIT
-                            cnt_sysclk_e <= 0;       // System Clock Count Stop, Clear
+                            next_state <= LCD_INIT; // Change State I2C_INIT
+                            cnt_sysclk_e <= 0;      // System Clock Count Stop, Clear
                         end
                     end
                 end
                 LCD_INIT    : begin
                     if (busy) begin                 // Communicating
-                        send <= 0;                   // Wait Transmission
+                        send <= 0;                  // Wait Transmission
                         if (cnt_data >= 6) begin
-                            cnt_data <= 0;           // LCD Initialization 6-Step Complete
-                            next_state <= LCD_IDLE;  // Change State I2C_IDLE
+                            cnt_data <= 0;          // LCD Initialization 6-Step Complete
+                            next_state <= LCD_IDLE; // Change State I2C_IDLE
                             lcd_init_flag <= 1;
                         end
                     end
@@ -445,19 +445,19 @@ module i2c_lcd_string (
                             4 : send_buffer <= 8'h01;    // Clear Display
                             5 : send_buffer <= 8'h06;    // Entry Mode Cursor Move Increment
                         endcase
-                        send <= 1;                   // Request Transmission
-                        cnt_data <= cnt_data + 1;    // Step Change
+                        send <= 1;                  // Request Transmission
+                        cnt_data <= cnt_data + 1;   // Step Change
                     end
                 end
                 MOVE_CURSOR : begin
                     if (busy) begin                 // Communicating
-                        send <= 0;                   // Wait Transmission
+                        send <= 0;                  // Wait Transmission
                         next_state <= SEND_STRING;
                     end
                     else if (!send) begin
-                        rs <= 0;                     // Instruction Register Select
-                        send_buffer <= {1'b1, lcd_row, 6'b00_0000};
-                        send <= 1;                   // Request Transmission
+                        rs <= 0;                    // Instruction Register Select
+                        send_buffer <= {1'b1, lcd_row, 6'b00_0000}; // 저장 위치 설정
+                        send <= 1;                  // Request Transmission
                     end
                 end
                 SEND_STRING : begin
@@ -469,8 +469,8 @@ module i2c_lcd_string (
                         end
                     end
                     else if (!send) begin
-                        rs <= 1;
-                        send_buffer <= lcd_txt[8*(16-cnt_data)-1 -: 8];
+                        rs <= 1;                    // Data Register Select
+                        send_buffer <= lcd_txt[8*(16-cnt_data)-1 -: 8]; // 왼쪽 글자부터 차례로 전송
                         send <= 1;
                         cnt_data <= cnt_data + 1;
                     end
@@ -479,7 +479,6 @@ module i2c_lcd_string (
         end
     end
 endmodule
-
 
 // PWM Frequency Signal Output According to Duty Ratio
 module pwm_Nstep (
@@ -533,14 +532,14 @@ endmodule
 //
 module stepper_cntr (
     input clk, reset_p,       
-    input start_stepper,              // 모터 구동 시작 신호, high일 때만 구동
-    input stepper_dir,                // 모터의 회전 방향 1'b1 = 시계 방향, 1'b0 = 반시계 방향
-    output reg [3:0] stepper,     // 모터 드라이버로 출력되는 4개의 신호 (IN1, IN2, IN3, IN4)
+    input start_stepper,            // 구동 신호, high일때 구동
+    input stepper_dir,              // 회전 방향 1 시계 방향, 0 반시계 방향
+    output reg [3:0] stepper,       // Motor Driver 출력 신호, IN1 ~ 4
     output [15:0] led
     );
 
-    reg [23:0] cnt_sysclk = 0;      //스텝 지연 시간을 제어하기 위한 카운터
-    reg [2:0] step_index = 0;       //배열의 인덱스를 나타냄  0에서 7까지 반복하며 모터를 회전
+    reg [23:0] cnt_sysclk = 0;      // System Clock Counter
+    reg [2:0] step_index = 0;       // 배열 Index 나타냄  0에서 7까지 반복하며 모터를 회전
     reg [3:0] half_step [7:0];      //8개의 하프 스텝 시퀀스를 배열로 정의
 
     initial begin
@@ -564,7 +563,7 @@ module stepper_cntr (
             stepper <= 4'b0000;
         end else begin
             if (start_stepper) begin
-                if (cnt_sysclk >= 200_000) begin
+                if (cnt_sysclk >= 200_000) begin        // 2ms마다 Step 변경
                     cnt_sysclk <= 0;
                     stepper <= half_step[step_index];
                     if (stepper_dir) begin // 시계 방향
@@ -776,33 +775,33 @@ module servo_cntr (
     edge_detector_pos sysclk_edge (clk, reset_p, cnt_sysclk[21], cnt_sysclk_pedge);
 
     reg [7:0] step;
-    assign led[0] = mode_servo;
-    assign led[1] = start_servo;
-    assign led[9:2] = step;
+    // assign led[0] = mode_servo;
+    // assign led[1] = start_servo;
+    // assign led[9:2] = step;
     always @(posedge clk or posedge reset_p) begin
         if(reset_p) begin
             step <= 20;
         end
-        else if (mode_servo) begin
+        else begin
             if (cnt_sysclk_pedge) begin
-                if (!start_servo) begin
-                    if (step <= 20) step <= 20;
+                if (start_servo) begin
+                    if (step <= 41) step <= 40;
                     else step <= step - 1;
                 end
-                else if (start_servo) begin
-                    if (step >= 180) step <= 180;
+                else begin
+                    if (step >= 149) step <= 150;
                     else step <= step + 1;
                 end
             end
         end
-        else if (!mode_servo) begin
-            // if (btn_pedge[1]) begin
-            //     step <= step - 1;
-            // end
-            // else if (btn_pedge[2]) begin
-            //     step <= step + 1;
-            // end
-        end
+        // else if (!mode_servo) begin
+        //     if (btn_pedge[1]) begin
+        //         step <= step - 1;
+        //     end
+        //     else if (btn_pedge[2]) begin
+        //         step <= step + 1;
+        //     end
+        // end
     end
 
     pwm_Nstep #(.pwm_freq(50), .duty_step_N(1440))

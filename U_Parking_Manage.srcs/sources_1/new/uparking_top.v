@@ -1,62 +1,66 @@
 `timescale 1ns / 1ps
 
-//
+// Underground Parking Management, Disaster Response
 module uparking_top (
     input clk, reset_p,
-    input water, flame, ball, photo, sound, gas, motion,
+    input water, flame, ball, photo, sound, gas, motion,    // Sensor 측정값 수신
     inout dht11_data,
-    output reg buzzer, fan, led_r,
+    output reg buzzer, fan, led_r,                  // LED, Buzzer 출력, Motor 구동
     output servo,
     output reg [2:0] led_g,
     output [3:0] stepper,
-    output sda, scl,
+    output sda, scl,                                // LCD I2C 통신
     output [6:0] seg_7,
     output dp,
     output [3:0] com,
-    output [15:0] led
+    output [15:0] led                               // for Debugging
     );
 
-    localparam NORMAL       = 8'b0000_0001;
-    localparam D_FLOOD      = 8'b0000_0010;
-    localparam D_FIRE       = 8'b0000_0100;
-    localparam D_QUAKE      = 8'b0000_1000;
-    localparam D_HIGH_TEMP  = 8'b0001_0000;
-    localparam D_BLACKOUT   = 8'b0010_0000;
-    localparam D_LOUD_NOISE = 8'b0100_0000;
-    localparam D_GAS        = 8'b1000_0000;
+    localparam NORMAL       = 8'b0000_0001;         // 평상
+    localparam D_FLOOD      = 8'b0000_0010;         // 침수
+    localparam D_FIRE       = 8'b0000_0100;         // 화재
+    localparam D_QUAKE      = 8'b0000_1000;         // 지진
+    localparam D_HIGH_TEMP  = 8'b0001_0000;         // 폭염
+    localparam D_BLACKOUT   = 8'b0010_0000;         // 암전
+    localparam D_LOUD_NOISE = 8'b0100_0000;         // 굉음
+    localparam D_GAS        = 8'b1000_0000;         // 가스 누출
 
-    localparam PEACE   = 3'b001;
-    localparam WARNING = 3'b010;
-    localparam DANGER  = 3'b100;
+    localparam PEACE   = 3'b001;                    // 평상
+    localparam WARNING = 3'b010;                    // 경고
+    localparam DANGER  = 3'b100;                    // 위험
 
-    wire [7:0] humidity, temperature;
+    // 온습도 측정 Module Instance
+    wire [7:0] humidity, temperature;               // 온습도 측정값 저장
     dht11_cntr dht (clk, reset_p, dht11_data, humidity, temperature);
 
-    wire [7:0] humi_bcd, temp_bcd;
-    // BCD Format Conversion
+    // 온습도 측정값 BCD Format 변환 Module Instance
+    wire [7:0] humi_bcd, temp_bcd;                  // 온습도 BCD 저장
     bin_to_dec bcd_humi (.bin(humidity), .bcd(humi_bcd));
     bin_to_dec bcd_tmpr (.bin(temperature), .bcd(temp_bcd));
 
-    reg start_stepper, start_servo, mode_servo;
+    // Stepper Motor, Servo Motor 구동 Module Instance
+    reg start_stepper, start_servo, mode_servo;     // Stepper, Servo Start-bit
     stepper_cntr cntr_st (clk, reset_p, start_stepper, 1'b0, stepper);
     servo_cntr cntr_sr (clk, reset_p, mode_servo, start_servo, servo);
 
-    reg lcd_start, lcd_row;
-    reg [8*16-1:0] lcd_txt;
-    reg [8*16-1:0] lcd_line1, lcd_line2;
-    wire lcd_init_flag, busy;
+    // LCD 문자열 출력 Module Instance
+    reg lcd_start, lcd_row;                         // LCD Start-bit, 출력 위치(열 0~1)
+    reg [8*16-1:0] lcd_txt;                         // 출력 문자열 전달 변수, 16문자
+    reg [8*16-1:0] lcd_line1, lcd_line2;            // 1, 2열 출력 문자열
+    wire lcd_init_flag, busy;                       // LCD 초기화g, 통신중 Flag
     i2c_lcd_string string_lcd (clk, reset_p, lcd_start, lcd_row, lcd_txt,
         scl, sda, lcd_init_flag, busy);
 
-    wire ball_pedge, ball_nedge;
+    wire ball_pedge, ball_nedge;                    // Ball Switch 측정값 Edge 감지
     edge_detector_pos ball_edge (clk, reset_p, ball, ball_pedge, ball_nedge);
-    wire sound_pedge, sound_nedge;
+    wire sound_pedge, sound_nedge;                  // Sound Sensor 측정값 Edge 감지
     btn_cntr sound_edge (clk, reset_p, sound, sound_pedge, sound_nedge);
-    wire clk_pedge, clk_nedge;
+    wire clk_pedge, clk_nedge;                      // Clock Count Edge 감지
     edge_detector_pos clk_edge (clk, reset_p, cnt_clk_led[24], clk_pedge, clk_nedge);
 
-    wire [1:0] led_r_pwm;
-    wire [3:0] led_g_pwm;
+    // Red, Green LED 출력용 PWM 설정
+    wire [1:0] led_r_pwm;                           // 0 Warning, 1 Danger
+    wire [3:0] led_g_pwm;                           // 0 Warning, 1~3 Danger
     pwm_Nstep #(.duty_step_N(128)) pwm_led_r0 (clk, reset_p, cnt_clk_led[27:21], led_r_pwm[0]);
     pwm_Nstep #(.duty_step_N(128)) pwm_led_r1 (clk, reset_p, cnt_clk_led[25:19], led_r_pwm[1]);
     pwm_Nstep #(.duty_step_N(128)) pwm_led_g0 (clk, reset_p, cnt_clk_led[27:23], led_g_pwm[0]);
@@ -64,22 +68,24 @@ module uparking_top (
     pwm_Nstep #(.duty_step_N(128)) pwm_led_g2 (clk, reset_p, cnt_clk_led[26:22], led_g_pwm[2]);
     pwm_Nstep #(.duty_step_N(128)) pwm_led_g3 (clk, reset_p, cnt_clk_led[26:24], led_g_pwm[3]);
 
-    reg [7:0] state, next_state;
-    reg [2:0] d_grade;
-    assign led [7:0] = state;
-    assign led [10:8] = d_grade;
-    assign led [11] = water;
-    assign led [12] = flame;
-    assign led [13] = photo;
-    assign led [14] = gas;
-    assign led [15] = lcd_init_flag;
+    // State 변경부
+    reg [7:0] state, next_state;                    // 현재와 다음 상황
+    reg [2:0] d_grade;                              // 상황 등급, 평상 → 경고 → 위험
     always @(negedge clk, posedge reset_p) begin
         if (reset_p) state = NORMAL;
         else state = next_state;
     end
 
-    reg [31:0] cnt_sysclk, cnt_clk_led;
-    reg cnt_sysclk_e;
+    // LCD 출력 for Debugging
+    assign led [7:0] = state;
+    assign led [10:8] = d_grade;
+    assign led [11] = lcd_init_flag;
+    assign led [12] = lcd_toggle;
+
+    // System Clock Counter
+    reg [31:0] cnt_sysclk, cnt_clk_led;             // 상황 시간 계산용, LED PWM 설정용
+    reg cnt_sysclk_e;                               // System Clock Counter Enable 변수
+    reg lcd_toggle;
     always @(posedge clk, posedge reset_p) begin
         if (reset_p) begin
             cnt_sysclk <= 0;
@@ -87,11 +93,13 @@ module uparking_top (
         end
         else begin
             cnt_clk_led <= cnt_clk_led + 1;
-            if (cnt_sysclk_e) cnt_sysclk <= cnt_sysclk + 1;
+            lcd_toggle <= cnt_clk_led[25];
+            if (cnt_sysclk_e) cnt_sysclk <= cnt_sysclk + 1; // Enable 상태에서만 Count
             else cnt_sysclk <= 0;
         end
     end
 
+    // LCD 주기적 출력 갱신
     always @(posedge clk, posedge reset_p) begin
         if (reset_p) begin
             lcd_start <= 0;
@@ -99,21 +107,22 @@ module uparking_top (
             lcd_txt <= 0;
         end
         else begin
-            if (lcd_init_flag) begin
+            if (lcd_init_flag) begin                // 초기화 완료 상황에서만 출력
                 if (lcd_start) begin
-                    lcd_start <= 0;
-                    lcd_row <= ~lcd_row;
+                    lcd_start <= 0;                 // LCD Start-bit Reset
+                    lcd_row <= ~lcd_row;            // 출력 줄 변경
                 end
                 else if (clk_pedge) begin
                     if (lcd_row) lcd_txt <= lcd_line1;
                     else lcd_txt <= lcd_line2;
-                    lcd_start <= 1;
+                    lcd_start <= 1;                 // LCD Start-bit 전송
                 end
             end
         end
     end
 
-    reg [3:0] cnt_water, cnt_flame, cnt_ball;
+    // Sensor 측정값을 이용해서 상황 및 등급 판단
+    reg [3:0] cnt_water, cnt_flame, cnt_ball;       // Sensor 측정 상황 시간 계산용 Count
     reg [3:0] cnt_temp, cnt_photo, cnt_gas, cnt_motion;
     always @(posedge clk, posedge reset_p) begin
         if (reset_p) begin
@@ -129,18 +138,20 @@ module uparking_top (
         end
         else begin
             if (water) begin
-                if (cnt_sysclk <= 50_000_000) begin
+                if (cnt_sysclk <= 50_000_000) begin     // 0.5초 = 500ms 단위 시간 계산
                     cnt_sysclk_e <= 1;
                 end
                 else begin
                     cnt_sysclk_e <= 0;
+                    // 평상 상황에서 Water Sensor 2초 이상 측정시
                     if (cnt_water >= 4 && state == NORMAL && d_grade == PEACE) begin
-                        next_state <= D_FLOOD;
-                        d_grade <= WARNING;
+                        next_state <= D_FLOOD;          // 침수 상황 변경
+                        d_grade <= WARNING;             // 경고 등급 변경
                         cnt_water <= 0;
                     end
+                    // 경고 상황에서 Water Sensor 3초 이상 측정시
                     else if (cnt_water >= 6 && state == D_FLOOD && d_grade == WARNING) begin
-                        d_grade <= DANGER;
+                        d_grade <= DANGER;              // 위험 등급 변경
                         cnt_water <= 0;
                     end
                     else begin
@@ -149,18 +160,20 @@ module uparking_top (
                 end
             end
             else if (!flame) begin
-                if (cnt_sysclk <= 50_000_000) begin
+                if (cnt_sysclk <= 50_000_000) begin     // 0.5초 = 500ms 단위 시간 계산
                     cnt_sysclk_e <= 1;
                 end
                 else begin
                     cnt_sysclk_e <= 0;
+                    // 평상 상황에서 Flame Sensor 2초 이상 측정시
                     if (cnt_flame >= 4 && state == NORMAL && d_grade == PEACE) begin
-                        next_state <= D_FIRE;
-                        d_grade <= WARNING;
+                        next_state <= D_FIRE;           // 화재 상황 변경
+                        d_grade <= WARNING;             // 경고 등급 변경
                         cnt_flame <= 0;
                     end
+                    // 경고 상황에서 Flame Sensor 3초 이상 측정시
                     else if (cnt_flame >= 6 && state == D_FIRE && d_grade == WARNING) begin
-                        d_grade <= DANGER;
+                        d_grade <= DANGER;              // 위험 등급 변경
                         cnt_flame <= 0;
                     end
                     else begin
@@ -169,32 +182,36 @@ module uparking_top (
                 end
             end
             else if (ball_pedge) begin
+                // 평상 상황에서 Ball Switch 흔들림 Count 4 이상 측정시
                 if (cnt_ball >= 4 && state == NORMAL && d_grade == PEACE) begin
-                    next_state <= D_QUAKE;
-                    d_grade <= WARNING;
+                    next_state <= D_QUAKE;              // 지진 상황 변경
+                    d_grade <= WARNING;                 // 경고 등급 변경
                 end
+                // 경고 상황에서 Ball Switch 흔들림 Count 10 이상 측정시
                 else if (cnt_ball >= 10 && state == D_QUAKE && d_grade == WARNING) begin
-                    d_grade <= DANGER;
+                    d_grade <= DANGER;                  // 위험 등급 변경
                     cnt_ball <= 0;
                 end
                 else begin
                     cnt_ball <= cnt_ball + 1;
                 end
             end
-            else if (temperature >= 8'd30) begin
-                if (cnt_sysclk <= 50_000_000) begin
+            else if (temperature >= 8'd30) begin        // 온도가 30도 이상일때
+                if (cnt_sysclk <= 50_000_000) begin     // 0.5초 = 500ms 단위 시간 계산
                     cnt_sysclk_e <= 1;
                 end
                 else begin
                     cnt_sysclk_e <= 0;
+                    // 평상 상황에서 온습도 Sensor 2초 이상 + 30도 이상 측정시
                     if (cnt_temp >= 4 && state == NORMAL && d_grade == PEACE) begin
-                        next_state <= D_HIGH_TEMP;
-                        d_grade <= WARNING;
+                        next_state <= D_HIGH_TEMP;      // 폭염 상황 변경
+                        d_grade <= WARNING;             // 경고 등급 변경
                         cnt_temp <= 0;
                     end
+                    // 경고 상황에서 온습도 Sensor 3초 이상 + 32도 이상 측정시
                     else if (temperature >= 8'd32 && cnt_temp >= 6
                             && state == D_HIGH_TEMP && d_grade == WARNING) begin
-                        d_grade <= DANGER;
+                        d_grade <= DANGER;              // 위험 등급 변경
                         cnt_temp <= 0;
                     end
                     else begin
@@ -203,18 +220,20 @@ module uparking_top (
                 end
             end
             else if (photo) begin
-                if (cnt_sysclk <= 50_000_000) begin
+                if (cnt_sysclk <= 50_000_000) begin     // 0.5초 = 500ms 단위 시간 계산
                     cnt_sysclk_e <= 1;
                 end
                 else begin
                     cnt_sysclk_e <= 0;
+                    // 평상 상황에서 Photo Sensor 2초 이상 측정시
                     if (cnt_photo >= 4 && state == NORMAL && d_grade == PEACE) begin
-                        next_state <= D_BLACKOUT;
-                        d_grade <= WARNING;
+                        next_state <= D_BLACKOUT;       // 암전 상황 변경
+                        d_grade <= WARNING;             // 경고 등급 변경
                         cnt_photo <= 0;
                     end
+                    // 경고 상황에서 Photo Sensor 3초 이상 측정시
                     else if (cnt_photo >= 6 && state == D_BLACKOUT && d_grade == WARNING) begin
-                        d_grade <= DANGER;
+                        d_grade <= DANGER;              // 위험 등급 변경
                         cnt_photo <= 0;
                     end
                     else begin
@@ -223,27 +242,31 @@ module uparking_top (
                 end
             end
             else if (sound_pedge) begin
+                // 평상 상황에서 Sound 1회 측정시
                 if (state == NORMAL && d_grade == PEACE) begin
-                    next_state <= D_LOUD_NOISE;
-                    d_grade <= WARNING;
+                    next_state <= D_LOUD_NOISE;         // 굉음 상황 변경
+                    d_grade <= WARNING;                 // 경고 등급 변경
                 end
+                // 경고 상황에서 Sound 1회 측정시
                 else if (state == D_LOUD_NOISE && d_grade == WARNING) begin
-                    d_grade <= DANGER;
+                    d_grade <= DANGER;                  // 위험 등급 변경
                 end
             end
             else if (!gas) begin
-                if (cnt_sysclk <= 50_000_000) begin
+                if (cnt_sysclk <= 50_000_000) begin     // 0.5초 = 500ms 단위 시간 계산
                     cnt_sysclk_e <= 1;
                 end
                 else begin
                     cnt_sysclk_e <= 0;
+                    // 평상 상황에서 Gas Sensor 2초 이상 측정시
                     if (cnt_gas >= 4 && state == NORMAL && d_grade == PEACE) begin
-                        next_state <= D_GAS;
-                        d_grade <= WARNING;
+                        next_state <= D_GAS;            // 가스 누출 상황 변경
+                        d_grade <= WARNING;             // 경고 등급 변경
                         cnt_gas <= 0;
                     end
+                    // 경고 상황에서 Gas Sensor 3초 이상 측정시
                     else if (cnt_gas >= 6 && state == D_GAS && d_grade == WARNING) begin
-                        d_grade <= DANGER;
+                        d_grade <= DANGER;              // 위험 등급 변경
                         cnt_gas <= 0;
                     end
                     else begin
@@ -254,11 +277,11 @@ module uparking_top (
         end
     end
 
+    // 상황과 등급별로 출력 및 구동
     always @(posedge clk, posedge reset_p) begin
         if (reset_p) begin
             buzzer <= 0;
-            mode_servo <= 1;
-            start_servo <= 0;
+            start_servo <= 1;
             start_stepper <= 0;
             fan <= 0;
             led_r <= 0;
@@ -267,24 +290,23 @@ module uparking_top (
             lcd_line2 <= 0;
         end
         else begin
-            case (d_grade)
-                // PEACE   : begin
-                //     lcd_line2[127:88] <= "TEMP ";
-                //     lcd_line2[87:80] <= "0" + temp_bcd[7:4];
-                //     lcd_line2[79:72] <= "0" + temp_bcd[3:0];
-                //     lcd_line2[71:16] <= ", HUMI ";
-                //     lcd_line2[15:8] <= "0" + humi_bcd[7:4];
-                //     lcd_line2[7:0] <= "0" + humi_bcd[3:0];
-                // end
+            case (d_grade)                              // 등급별 LCD 2열, Buzzer, LED 출력
                 WARNING : begin
                     lcd_line2 <= " Be Careful     ";
+                    led_r <= led_r_pwm[0];
+                    led_g <= {3{led_g_pwm[0]}};
                 end
                 DANGER  : begin
-                    if (motion && lcd_row) lcd_line2 <= " Motion Detect  ";
+                    led_r <= led_r_pwm[1];
+                    led_g <= led_g_pwm[3:1];
+                    buzzer <= cnt_clk_led[25];
+                    if (motion) lcd_line2 <= " Motion Detect  ";    // 동작시 감지시 LCD 출력
                     else lcd_line2 <= " Run Away       ";
                 end
                 default : begin
-                    lcd_line2[127:88] <= "TEMP ";
+                    led_r <= 0;
+                    led_g <= 0;
+                    lcd_line2[127:88] <= "TEMP ";       // 측정 온습도 LCD 출력
                     lcd_line2[87:80] <= "0" + temp_bcd[7:4];
                     lcd_line2[79:72] <= "0" + temp_bcd[3:0];
                     lcd_line2[71:16] <= ", HUMI ";
@@ -292,21 +314,15 @@ module uparking_top (
                     lcd_line2[7:0] <= "0" + humi_bcd[3:0];
                 end
             endcase
-            case (state)
-                NORMAL       : begin
-                    mode_servo <= 1;
-                    start_servo <= 0;
-                    if (lcd_row) lcd_line1 <= "   Happy Day    ";
-                    else lcd_line1         <= "   Every Day    ";
-                end
+            case (state)                                // 상황별 LCD 1열 출력 및 구동
                 D_FLOOD      : begin
                     if (d_grade == WARNING) begin
                         lcd_line1 <= " FLOOD Warning  ";
                     end
                     else if (d_grade == DANGER) begin
                         lcd_line1 <= " FLOOD Danger   ";
-                        start_servo <= 1;
-                        start_stepper <= 1;
+                        start_servo <= 0;               // 차수판 작동
+                        start_stepper <= 1;             // 자동사다리 작동
                     end
                 end
                 D_FIRE       : begin
@@ -315,8 +331,8 @@ module uparking_top (
                     end
                     else if (d_grade == DANGER) begin
                         lcd_line1 <= " FIRE Danger    ";
-                        start_stepper <= 1;
-                        fan <= 1;
+                        start_stepper <= 1;             // 자동사다리 작동
+                        fan <= 1;                       // 제연 및 환기 작동
                     end
                 end
                 D_QUAKE      : begin
@@ -333,7 +349,7 @@ module uparking_top (
                     end
                     else if (d_grade == DANGER) begin
                         lcd_line1 <= "HIGHHEAT Danger ";
-                        fan <= 1;
+                        fan <= 1;                       // 제연 및 환기 작동
                     end
                 end
                 D_BLACKOUT   : begin
@@ -358,31 +374,24 @@ module uparking_top (
                     end
                     else if (d_grade == DANGER) begin
                         lcd_line1 <= "GAS LEAK Danger ";
-                        fan <= 1;
+                        fan <= 1;                       // 제연 및 환기 작동
                     end
                 end
                 default      : begin
-                    lcd_line1 <= "   Every Day    ";
+                    start_servo <= 1;
+                    if (lcd_toggle) lcd_line1 <= "   Happy Day    ";
+                    else lcd_line1 <= "   Every Day    ";
                 end
             endcase
-            if (d_grade == WARNING) begin
-                led_r <= led_r_pwm[0];
-                led_g <= {3{led_g_pwm[0]}};
-            end
-            else if (d_grade == DANGER) begin
-                led_r <= led_r_pwm[1];
-                led_g <= led_g_pwm[3:1];
-                buzzer <= cnt_clk_led[25];
-            end
         end
     end
 
-    // FND 4-Digit Output
+    // 온습도 FND 4-Digit Output
     fnd_cntr fnd (.clk(clk), .reset_p(reset_p),
         .fnd_value({temp_bcd, humi_bcd}), .hex_bcd(1), .seg_7(seg_7), .dp(dp), .com(com));
 endmodule
 
-//
+// PWM 적용 LED 출력 Test
 module led_test_top (
     input clk, reset_p,
     input sw0,
@@ -421,7 +430,7 @@ module led_test_top (
     end
 endmodule
 
-/*
+/* // LCD 문자열 출력 Test
 module lcd_test_top (
     input clk, reset_p,
     input [3:0] btn,
@@ -578,7 +587,7 @@ module lcd_test_top (
 endmodule
 */
 
-//
+// Module 이용 LCD 문자열 출력 Test
 module lcd_mtest_top (
     input clk, reset_p,
     input [3:0] btn,
