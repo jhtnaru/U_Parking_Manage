@@ -147,10 +147,9 @@ module uparking_top (
                     if (cnt_water >= 4 && state == NORMAL && d_grade == PEACE) begin
                         next_state <= D_FLOOD;          // 침수 상황 변경
                         d_grade <= WARNING;             // 경고 등급 변경
-                        cnt_water <= 0;
                     end
                     // 경고 상황에서 Water Sensor 3초 이상 측정시
-                    else if (cnt_water >= 6 && state == D_FLOOD && d_grade == WARNING) begin
+                    else if (cnt_water >= 10 && state == D_FLOOD && d_grade == WARNING) begin
                         d_grade <= DANGER;              // 위험 등급 변경
                         cnt_water <= 0;
                     end
@@ -169,10 +168,9 @@ module uparking_top (
                     if (cnt_flame >= 4 && state == NORMAL && d_grade == PEACE) begin
                         next_state <= D_FIRE;           // 화재 상황 변경
                         d_grade <= WARNING;             // 경고 등급 변경
-                        cnt_flame <= 0;
                     end
                     // 경고 상황에서 Flame Sensor 3초 이상 측정시
-                    else if (cnt_flame >= 6 && state == D_FIRE && d_grade == WARNING) begin
+                    else if (cnt_flame >= 10 && state == D_FIRE && d_grade == WARNING) begin
                         d_grade <= DANGER;              // 위험 등급 변경
                         cnt_flame <= 0;
                     end
@@ -183,12 +181,12 @@ module uparking_top (
             end
             else if (ball_pedge) begin
                 // 평상 상황에서 Ball Switch 흔들림 Count 4 이상 측정시
-                if (cnt_ball >= 4 && state == NORMAL && d_grade == PEACE) begin
+                if (cnt_ball >= 7 && state == NORMAL && d_grade == PEACE) begin
                     next_state <= D_QUAKE;              // 지진 상황 변경
                     d_grade <= WARNING;                 // 경고 등급 변경
                 end
                 // 경고 상황에서 Ball Switch 흔들림 Count 10 이상 측정시
-                else if (cnt_ball >= 10 && state == D_QUAKE && d_grade == WARNING) begin
+                else if (cnt_ball >= 15 && state == D_QUAKE && d_grade == WARNING) begin
                     d_grade <= DANGER;                  // 위험 등급 변경
                     cnt_ball <= 0;
                 end
@@ -196,7 +194,7 @@ module uparking_top (
                     cnt_ball <= cnt_ball + 1;
                 end
             end
-            else if (temperature >= 8'd30) begin        // 온도가 30도 이상일때
+            else if (temperature >= 8'd28) begin        // 온도가 30도 이상일때
                 if (cnt_sysclk <= 50_000_000) begin     // 0.5초 = 500ms 단위 시간 계산
                     cnt_sysclk_e <= 1;
                 end
@@ -209,10 +207,9 @@ module uparking_top (
                         cnt_temp <= 0;
                     end
                     // 경고 상황에서 온습도 Sensor 3초 이상 + 32도 이상 측정시
-                    else if (temperature >= 8'd32 && cnt_temp >= 6
+                    else if (temperature >= 8'd30 && cnt_temp >= 10
                             && state == D_HIGH_TEMP && d_grade == WARNING) begin
                         d_grade <= DANGER;              // 위험 등급 변경
-                        cnt_temp <= 0;
                     end
                     else begin
                         cnt_temp <= cnt_temp + 1;
@@ -229,10 +226,9 @@ module uparking_top (
                     if (cnt_photo >= 4 && state == NORMAL && d_grade == PEACE) begin
                         next_state <= D_BLACKOUT;       // 암전 상황 변경
                         d_grade <= WARNING;             // 경고 등급 변경
-                        cnt_photo <= 0;
                     end
                     // 경고 상황에서 Photo Sensor 3초 이상 측정시
-                    else if (cnt_photo >= 6 && state == D_BLACKOUT && d_grade == WARNING) begin
+                    else if (cnt_photo >= 10 && state == D_BLACKOUT && d_grade == WARNING) begin
                         d_grade <= DANGER;              // 위험 등급 변경
                         cnt_photo <= 0;
                     end
@@ -262,10 +258,9 @@ module uparking_top (
                     if (cnt_gas >= 4 && state == NORMAL && d_grade == PEACE) begin
                         next_state <= D_GAS;            // 가스 누출 상황 변경
                         d_grade <= WARNING;             // 경고 등급 변경
-                        cnt_gas <= 0;
                     end
                     // 경고 상황에서 Gas Sensor 3초 이상 측정시
-                    else if (cnt_gas >= 6 && state == D_GAS && d_grade == WARNING) begin
+                    else if (cnt_gas >= 10 && state == D_GAS && d_grade == WARNING) begin
                         d_grade <= DANGER;              // 위험 등급 변경
                         cnt_gas <= 0;
                     end
@@ -277,7 +272,7 @@ module uparking_top (
         end
     end
 
-    // 상황과 등급별로 출력 및 구동
+    // 상황 및 등급별 출력, 구동
     always @(posedge clk, posedge reset_p) begin
         if (reset_p) begin
             buzzer <= 0;
@@ -386,7 +381,7 @@ module uparking_top (
         end
     end
 
-    // 온습도 FND 4-Digit Output
+    // 온습도 FND 4-Digit Output, for Debugging
     fnd_cntr fnd (.clk(clk), .reset_p(reset_p),
         .fnd_value({temp_bcd, humi_bcd}), .hex_bcd(1), .seg_7(seg_7), .dp(dp), .com(com));
 endmodule

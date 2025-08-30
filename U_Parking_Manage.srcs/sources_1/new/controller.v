@@ -529,7 +529,7 @@ module pwm_Nstep (
     end
 endmodule
 
-//
+// Half-Step 방식 Stepper 구동
 module stepper_cntr (
     input clk, reset_p,       
     input start_stepper,            // 구동 신호, high일때 구동
