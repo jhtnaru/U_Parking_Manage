@@ -69,7 +69,7 @@
 
 ## 📽 시연 영상
 
--   [시연 영상 1](https://youtu.be/Tw248NSMQMI?si=36S2efTuJ7Tr04_r)\
+-   [시연 영상 1](https://youtu.be/Tw248NSMQMI?si=36S2efTuJ7Tr04_r)
 -   [시연 영상 2](https://youtu.be/YJAre8ZWxm8?si=r-h7S7e3ir5AUFSH)
 
 ------------------------------------------------------------------------
