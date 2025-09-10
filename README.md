@@ -79,4 +79,7 @@
 
 ---
 
-![Flow Chart](UParkingManage_FlowChart.png)
+## Flow Chart
+<p align="Left">
+  <img src="UParkingManage_FlowChart.png" width="70%" />
+</p>
